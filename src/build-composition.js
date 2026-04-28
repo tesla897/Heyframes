@@ -262,7 +262,7 @@ const buildPaintExplainerChunk = (props) => {
     const segmentDuration = Number(segment.durationSec || 0);
     cursor += segmentDuration;
     const id = `segment-${index + 1}`;
-    const title = segment.chapterTitle || segment.segmentType || '';
+    const title = segment.chapterTitle || '';
     const mediaClass = `clip segment-media ${segment.zoom ? 'zoomable' : ''}`;
     const asset = segment.assetType === 'video'
       ? `<video class="${mediaClass}" id="${id}-media" data-start="${start.toFixed(3)}" data-duration="${segmentDuration.toFixed(3)}" data-track-index="${TRACKS.media + index}" src="${escapeAttr(segment.src)}" muted playsinline></video>`
