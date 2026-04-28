@@ -24,6 +24,14 @@ const safeCssColor = (value, fallback) => {
 const sumDurations = (segments) =>
   segments.reduce((total, segment) => total + Number(segment.durationSec || 0), 0);
 
+const TRACKS = {
+  media: 1,
+  labels: 1000,
+  audio: 2000,
+  logo: 2001,
+  captions: 3000,
+};
+
 const normalizeWord = (word, index) => {
   const text = String(word?.text ?? word?.word ?? '').trim();
   const rawStart = Number(word?.startSec ?? word?.start ?? word?.start_ms ?? 0);
@@ -257,24 +265,24 @@ const buildPaintExplainerChunk = (props) => {
     const title = segment.chapterTitle || segment.segmentType || '';
     const mediaClass = `clip segment-media ${segment.zoom ? 'zoomable' : ''}`;
     const asset = segment.assetType === 'video'
-      ? `<video class="${mediaClass}" id="${id}-media" data-start="${start.toFixed(3)}" data-duration="${segmentDuration.toFixed(3)}" data-track-index="${index + 1}" src="${escapeAttr(segment.src)}" muted playsinline></video>`
-      : `<img class="${mediaClass}" id="${id}-media" data-start="${start.toFixed(3)}" data-duration="${segmentDuration.toFixed(3)}" data-track-index="${index + 1}" src="${escapeAttr(segment.src)}" alt="" />`;
+      ? `<video class="${mediaClass}" id="${id}-media" data-start="${start.toFixed(3)}" data-duration="${segmentDuration.toFixed(3)}" data-track-index="${TRACKS.media + index}" src="${escapeAttr(segment.src)}" muted playsinline></video>`
+      : `<img class="${mediaClass}" id="${id}-media" data-start="${start.toFixed(3)}" data-duration="${segmentDuration.toFixed(3)}" data-track-index="${TRACKS.media + index}" src="${escapeAttr(segment.src)}" alt="" />`;
 
     return `      ${asset}
-      ${title ? `<div class="clip chapter-label" id="${id}-label" data-start="${start.toFixed(3)}" data-duration="${segmentDuration.toFixed(3)}" data-track-index="${segments.length + index + 1}">${escapeHtml(title)}</div>` : ''}`;
+      ${title ? `<div class="clip chapter-label" id="${id}-label" data-start="${start.toFixed(3)}" data-duration="${segmentDuration.toFixed(3)}" data-track-index="${TRACKS.labels + index}">${escapeHtml(title)}</div>` : ''}`;
   }).join('\n\n');
 
   const audioHtml = props.audioUrl
-    ? `      <audio id="voiceover" data-start="0" data-duration="${duration.toFixed(3)}" data-track-index="${segments.length + 20}" src="${escapeAttr(props.audioUrl)}" data-volume="1"></audio>`
+    ? `      <audio id="voiceover" data-start="0" data-duration="${duration.toFixed(3)}" data-track-index="${TRACKS.audio}" src="${escapeAttr(props.audioUrl)}" data-volume="1"></audio>`
     : '';
 
   const logoHtml = props.logoUrl
-    ? `      <img class="clip logo" id="logo" data-start="0" data-duration="${duration.toFixed(3)}" data-track-index="${segments.length + 21}" src="${escapeAttr(props.logoUrl)}" alt="" />`
+    ? `      <img class="clip logo" id="logo" data-start="0" data-duration="${duration.toFixed(3)}" data-track-index="${TRACKS.logo}" src="${escapeAttr(props.logoUrl)}" alt="" />`
     : '';
 
   const captionsHtml = words.map((word, index) => {
     const wordDuration = Math.max(0.05, word.endSec - word.startSec);
-    return `      <span class="clip caption-word" id="word-${index + 1}" data-start="${word.startSec.toFixed(3)}" data-duration="${wordDuration.toFixed(3)}" data-track-index="${segments.length + 30 + index}">${escapeHtml(word.text)}</span>`;
+    return `      <span class="clip caption-word" id="word-${index + 1}" data-start="${word.startSec.toFixed(3)}" data-duration="${wordDuration.toFixed(3)}" data-track-index="${TRACKS.captions + index}">${escapeHtml(word.text)}</span>`;
   }).join('\n');
 
   return `${buildHead({width, height, background: '#111111'})}
