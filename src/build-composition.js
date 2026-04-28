@@ -32,6 +32,30 @@ const TRACKS = {
   captions: 3000,
 };
 
+const CHUNK_TRANSITION_SEC = 0.35;
+
+const normalizeChunkTransition = (transition) => {
+  const value = String(transition || '').toLowerCase();
+
+  if (!value) {
+    return null;
+  }
+
+  if (value === 'fade' || value === 'dissolve') {
+    return {type: 'fade'};
+  }
+
+  if (value === 'wipeleft') {
+    return {type: 'wipe', direction: 'from-right'};
+  }
+
+  if (value === 'wiperight') {
+    return {type: 'wipe', direction: 'from-left'};
+  }
+
+  return {type: 'fade'};
+};
+
 const normalizeWord = (word, index) => {
   const text = String(word?.text ?? word?.word ?? '').trim();
   const rawStart = Number(word?.startSec ?? word?.start ?? word?.start_ms ?? 0);
@@ -256,17 +280,34 @@ const buildPaintExplainerChunk = (props) => {
   const duration = Math.max(1, sumDurations(segments));
   const words = (props.captions?.words ?? []).map(normalizeWord).filter(Boolean);
   let cursor = 0;
+  const timings = segments.map((segment, index) => {
+    const originalStart = cursor;
+    const segmentDuration = Number(segment.durationSec || 0);
+    const previousTransition =
+      index > 0 && index - 1 > 1 ? normalizeChunkTransition(segments[index - 1]?.transition) : null;
+    const transitionInDuration = previousTransition ? Math.min(CHUNK_TRANSITION_SEC, segmentDuration / 2) : 0;
+    cursor += segmentDuration;
+
+    return {
+      originalStart,
+      start: Math.max(0, originalStart - transitionInDuration),
+      duration: segmentDuration + transitionInDuration,
+      segmentDuration,
+      transitionIn: previousTransition,
+      transitionInDuration,
+    };
+  });
 
   const segmentHtml = segments.map((segment, index) => {
-    const start = cursor;
-    const segmentDuration = Number(segment.durationSec || 0);
-    cursor += segmentDuration;
+    const timing = timings[index];
+    const start = timing.start;
+    const segmentDuration = timing.duration;
     const id = `segment-${index + 1}`;
     const title = segment.chapterTitle || '';
     const mediaClass = `clip segment-media ${segment.zoom ? 'zoomable' : ''}`;
     const asset = segment.assetType === 'video'
-      ? `<video class="${mediaClass}" id="${id}-media" data-start="${start.toFixed(3)}" data-duration="${segmentDuration.toFixed(3)}" data-track-index="${TRACKS.media + index}" src="${escapeAttr(segment.src)}" muted playsinline></video>`
-      : `<img class="${mediaClass}" id="${id}-media" data-start="${start.toFixed(3)}" data-duration="${segmentDuration.toFixed(3)}" data-track-index="${TRACKS.media + index}" src="${escapeAttr(segment.src)}" alt="" />`;
+      ? `<video class="${mediaClass} video-media" id="${id}-media" data-start="${start.toFixed(3)}" data-duration="${segmentDuration.toFixed(3)}" data-track-index="${TRACKS.media + index}" src="${escapeAttr(segment.src)}" muted playsinline></video>`
+      : `<img class="${mediaClass} image-media" id="${id}-media" data-start="${start.toFixed(3)}" data-duration="${segmentDuration.toFixed(3)}" data-track-index="${TRACKS.media + index}" src="${escapeAttr(segment.src)}" alt="" />`;
 
     return `      ${asset}
       ${title ? `<div class="clip chapter-label" id="${id}-label" data-start="${start.toFixed(3)}" data-duration="${segmentDuration.toFixed(3)}" data-track-index="${TRACKS.labels + index}">${escapeHtml(title)}</div>` : ''}`;
@@ -291,11 +332,17 @@ const buildPaintExplainerChunk = (props) => {
         inset: 0;
         width: 100%;
         height: 100%;
-        object-fit: cover;
         display: block;
         overflow: hidden;
-        background: #111111;
+        background: #f4f0e8;
         will-change: opacity, transform;
+      }
+      .video-media {
+        object-fit: cover;
+        background: #111111;
+      }
+      .image-media {
+        object-fit: contain;
       }
       .chapter-label {
         position: absolute;
@@ -353,15 +400,48 @@ ${captionsHtml}
       const tl = gsap.timeline({ paused: true });
       const segments = ${JSON.stringify(segments.map((segment, index) => ({
         selector: `#segment-${index + 1}-media`,
-        start: segments.slice(0, index).reduce((total, current) => total + Number(current.durationSec || 0), 0),
-        duration: Number(segment.durationSec || 0),
+        start: timings[index].start,
+        originalStart: timings[index].originalStart,
+        duration: timings[index].duration,
+        segmentDuration: timings[index].segmentDuration,
+        transitionIn: timings[index].transitionIn,
+        transitionInDuration: timings[index].transitionInDuration,
         transition: String(segment.transition || ''),
         zoom: String(segment.zoom || ''),
       })))};
 
       segments.forEach((segment) => {
+        if (segment.transitionIn && segment.transitionInDuration > 0) {
+          if (segment.transitionIn.type === "fade") {
+            tl.fromTo(
+              segment.selector,
+              { opacity: 0 },
+              { opacity: 1, duration: segment.transitionInDuration, ease: "none" },
+              segment.start
+            );
+          } else if (segment.transitionIn.direction === "from-right") {
+            tl.fromTo(
+              segment.selector,
+              { clipPath: "inset(0% 0% 0% 100%)" },
+              { clipPath: "inset(0% 0% 0% 0%)", duration: segment.transitionInDuration, ease: "none" },
+              segment.start
+            );
+          } else {
+            tl.fromTo(
+              segment.selector,
+              { clipPath: "inset(0% 100% 0% 0%)" },
+              { clipPath: "inset(0% 0% 0% 0%)", duration: segment.transitionInDuration, ease: "none" },
+              segment.start
+            );
+          }
+        }
         if (segment.zoom) {
-          tl.fromTo(segment.selector, { scale: 1 }, { scale: 1.06, duration: segment.duration, ease: "none" }, segment.start);
+          tl.fromTo(
+            segment.selector,
+            { scale: 1 },
+            { scale: 1.04, duration: segment.segmentDuration, ease: "power1.out" },
+            segment.originalStart
+          );
         }
       });
       if (document.querySelector(".logo")) {
