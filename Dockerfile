@@ -5,6 +5,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV XDG_CACHE_HOME=/app/.cache
+ENV HYPERFRAMES_BROWSER_PATH=/usr/bin/chromium
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -37,8 +38,6 @@ RUN apt-get update \
 
 COPY package*.json ./
 RUN npm ci --omit=dev
-RUN mkdir -p /app/.cache \
-  && npx hyperframes browser ensure
 
 COPY . .
 
