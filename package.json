@@ -1,0 +1,19 @@
+{
+  "name": "heyframes",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "hyperframes lint",
+    "doctor": "hyperframes doctor",
+    "render:sample": "hyperframes render --output renders/sample.mp4 --quality standard",
+    "start": "node server/index.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1024.0",
+    "@aws-sdk/s3-request-presigner": "^3.1024.0",
+    "express": "^4.22.1",
+    "hyperframes": "0.4.31",
+    "zod": "^4.3.6"
+  }
+}

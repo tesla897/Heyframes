@@ -1,0 +1,8 @@
+node_modules
+.tmp
+renders/*
+!renders/.gitkeep
+npm-debug.log
+.env
+ffmpeg.exe
+ffprobe.exe
